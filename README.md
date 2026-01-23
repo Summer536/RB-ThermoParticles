@@ -1,10 +1,7 @@
 # RB-ThermoParticles(CUDA)
 
-**Project name for GitHub**: `CudaRB3D-ThermoParticles`  
-**Code title**: *Single-GPU 3D Thermal Rayleigh-Benard LBM with Finite-Size Particles*
-
 ## Overview
-This CUDA code solves 3D Rayleigh-Benard (RB) convection on a single GPU and supports finite-size spherical particles with particle dynamics and particle heat transfer. The fluid/thermal fields use a double-distribution LBM (D3Q27 + BGK). Particle-fluid coupling is handled with IBB (interpolated bounce-back) and momentum exchange. Particle-particle and particle-wall interactions use a soft-sphere repulsion model.
+This CUDA code solves 3D Rayleigh-Benard (RB) convection on GPU and supports finite-size spherical particles with particle dynamics and particle heat transfer. The fluid/thermal fields use the double-distribution LBM (D3Q27 + BGK). Particle-fluid coupling is handled with IBB (interpolated bounce-back). Particle-particle and particle-wall interactions use a soft-sphere repulsion model.
 
 ## Physical Model
 - **Case**: 3D closed cavity RB convection (hot plate at x=0, cold plate at x=LX) with optional spherical thermal particles.
