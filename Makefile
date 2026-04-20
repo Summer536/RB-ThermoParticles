@@ -1,5 +1,5 @@
 NVCC = nvcc
-# NVCCFLAGS = -O3 -arch=sm_86 -std=c++14 -diag-suppress 20044
+# NVCCFLAGS = -O5 -arch=sm_86 -std=c++14 -diag-suppress 20044
 NVCCFLAGS = -O3 -arch=sm_80 -std=c++14 -rdc=true
 INCLUDES = -Iinclude -I.
 
