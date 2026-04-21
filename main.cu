@@ -43,17 +43,18 @@ int main() {
                                        d_rho, d_ux, d_uy, d_uz);
         CHECK_CUDA_ERROR(cudaGetLastError());
         CHECK_CUDA_ERROR(cudaMemcpy(d_f_collide, d_f, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
-        
+
         streaming<<<grid, block>>>(d_f, d_f_temp);
         CHECK_CUDA_ERROR(cudaMemcpy(d_f, d_f_temp, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
         CHECK_CUDA_ERROR(cudaGetLastError());
         CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
         if (ACTIVATE_PARTICLES && NPART > 0) {
-            bounce_back_particles();
+            bounce_back_particles(); ///////For the velocity field
             CHECK_CUDA_ERROR(cudaDeviceSynchronize());
         }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
         collision_BGK_scalar<<<grid, block>>>(d_g, d_force_realx, d_force_realy, d_force_realz,
                                               d_rho, d_ux, d_uy, d_uz, d_phi);
         CHECK_CUDA_ERROR(cudaGetLastError());
@@ -66,22 +67,22 @@ int main() {
         CHECK_CUDA_ERROR(cudaDeviceSynchronize());
         
         if (ACTIVATE_PARTICLES && NPART > 0) {
-            bounce_back_thermal_particles();
+            bounce_back_thermal_particles(); ///////For the thermal field
             CHECK_CUDA_ERROR(cudaDeviceSynchronize());
         }
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////
         
         if (ACTIVATE_PARTICLES && NPART > 0) {
-            prepare_particle_forces_step();
-            apply_repulsive_forces();
+            // prepare_particle_forces_step();
+            // apply_repulsive_forces();
 
-            compute_particle_forces();
-            compute_particle_heat();
+            // compute_particle_forces();
+            // compute_particle_heat();
 
-            update_particles();
+            // update_particles();
 
             build_links();
-            refill_nodes();
+            // refill_nodes();
         }
 
         // GPU timing end

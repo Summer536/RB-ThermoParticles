@@ -195,6 +195,7 @@ void init_particles() {
         }
         std::fill(h_ibnode, h_ibnode + LXYZ, 0);  // void fill(start_loc, end_loc, value)
         std::copy(h_ibnode, h_ibnode + LXYZ, h_ibnode_prev); // void copy(start_src, end_src, dst)
+        //  std::copy h_pipe_bnode --->>> h_ibnode_prev
         std::fill(h_ibnode_owner, h_ibnode_owner + LXYZ, -1);
         std::copy(h_ibnode_owner, h_ibnode_owner + LXYZ, h_ibnode_owner_prev);
         CHECK_CUDA_ERROR(cudaMalloc(&d_ibnode,       LXYZ * sizeof(int)));

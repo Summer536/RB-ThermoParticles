@@ -3,13 +3,15 @@ NVCC = nvcc
 NVCCFLAGS = -O3 -arch=sm_80 -std=c++14 -rdc=true
 INCLUDES = -Iinclude -I.
 
-# SRCS = main.cu globals.cu initial.cu collision.cu streaming_old.cu macrovar.cu output.cu 
+# SRCS = main.cu globals.cu initial.cu collision.cu streaming_old.cu macrovar.cu output.cu globals_pipe.cu pipe.cu
 SRCS = main.cu \
 	src_lbm/globals.cu \
 	src_lbm/initial.cu \
 	src_lbm/collision.cu \
 	src_lbm/streaming.cu \
 	src_lbm/macrovar.cu \
+	src_lbm/globals_pipe.cu \
+	src_lbm/pipe.cu \
 	src_part/pinit.cu \
 	src_part/links.cu \
 	src_part/refill.cu \

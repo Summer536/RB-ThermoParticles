@@ -233,12 +233,12 @@ void build_links() {
         const double px = h_ppos_x[p];
         const double py = h_ppos_y[p];
         const double pz = h_ppos_z[p];
-        int ix_min = static_cast<int>(floor(px - particle_radius - 0.5));
-        int ix_max = static_cast<int>(floor(px + particle_radius - 0.5));
-        int iy_min = static_cast<int>(floor(py - particle_radius - 0.5));
-        int iy_max = static_cast<int>(floor(py + particle_radius - 0.5));
-        int iz_min = static_cast<int>(floor(pz - particle_radius - 0.5));
-        int iz_max = static_cast<int>(floor(pz + particle_radius - 0.5));
+        int ix_min = static_cast<int>(floor(px - particle_radius - 0.5));  // local search
+        int ix_max = static_cast<int>(floor(px + particle_radius - 0.5));  // local search
+        int iy_min = static_cast<int>(floor(py - particle_radius - 0.5));  // local search
+        int iy_max = static_cast<int>(floor(py + particle_radius - 0.5));  // local search
+        int iz_min = static_cast<int>(floor(pz - particle_radius - 0.5));  // local search
+        int iz_max = static_cast<int>(floor(pz + particle_radius - 0.5));  // local search
 
         if (ix_min < 0) ix_min = 0;
         if (iy_min < 0) iy_min = 0;
@@ -282,7 +282,7 @@ void build_links() {
     const int threads = 256;
     const int blocks = (LXYZ + threads - 1) / threads;
 
-
+//////////////////////////////////////////////////////////
     // New fluid nodes.
     new_fluid_count_kernel<<<blocks, threads>>>(d_link_count,
                                                 d_ibnode_prev, d_ibnode,
@@ -321,6 +321,7 @@ void build_links() {
                                                    d_new_fluid_nodes, d_new_fluid_pids);
         CHECK_CUDA_ERROR(cudaGetLastError());
     }
+///////////////////////////////////////////////////////////////////////////
 
     // Link counting.
     link_count_kernel<<<blocks, threads>>>(d_link_count,

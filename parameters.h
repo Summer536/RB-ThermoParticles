@@ -47,6 +47,12 @@
 #define REP_STF0_W 0.025
 #define REP_STF1_W 0.002
 
+// PIPE parameters
+#define ACTIVATE_PIPE 1
+#define PIPE_RAD1 100.0
+#define PIPE_RAD2 50.0
+#define PIPE_u0 0.05
+
 // Block dimensions for CUDA kernels
 #define BLOCK_X 8
 #define BLOCK_Y 8
