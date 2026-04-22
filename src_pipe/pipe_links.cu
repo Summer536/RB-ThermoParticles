@@ -144,10 +144,10 @@ __global__ void pipe_link_count_kernel(int *count,
     for (int ip = 1; ip < NPOP; ++ip) {
         const int imove = ix + d_cix[ip];
         const int jmove = iy + d_ciy[ip];
-        const int zmove = iz + d_ciz[ip];
-        if (imove < 0 || imove >= LX || jmove < 0 || jmove >= LY || zmove < 0 || zmove >= LZ ) continue;
-        const int nidx = nz * LXY + jmove * LX + imove;
-        const int pid = owner[nidx];///
+        const int kmove = iz + d_ciz[ip];
+        if (imove < 0 || imove >= LX || jmove < 0 || jmove >= LY || kmove < 0 || kmove >= LZ ) continue;
+        const int nidx = kmove * LXY + jmove * LX + imove;
+        const int cyl_id = owner[nidx];///
         if (pid < 0) continue;
 
         double q = 0.0;
@@ -185,21 +185,24 @@ __global__ void pipe_link_fill_kernel(const int *count, const int *offset,
     const int ix = rem - iy * LX;
     const double x0 = static_cast<double>(ix) + 0.5;
     const double y0 = static_cast<double>(iy) + 0.5;
-    const double z0 = static_cast<double>(iz) + 0.5;
-    const double radius_sq = d_particle_radius * d_particle_radius;
+    // const double z0 = static_cast<double>(iz) + 0.5;
+    // const double radius_sq = d_particle_radius * d_particle_radius;
 
     int write_idx = offset[idx];
     for (int ip = 1; ip < NPOP; ++ip) {
-        const int nx = ix + d_cix[ip];
-        const int ny = iy + d_ciy[ip];
-        const int nz = iz + d_ciz[ip];
-        if (nx < 0 || nx >= LX || ny < 0 || ny >= LY || nz < 0 || nz >= LZ) continue;
-        const int nidx = nz * LXY + ny * LX + nx;
-        const int pid = owner[nidx];
+        const int imove = ix + d_cix[ip];
+        const int jmove = iy + d_ciy[ip];
+        const int kmove = iz + d_ciz[ip];
+        if (imove < 0 || imove >= LX || jmove < 0 || jmove >= LY || kmove < 0 || kmove >= LZ) continue;
+        const int nidx = kmove * LXY + jmove * LX + imove;
+        const int cyl_id = owner[nidx];
         if (pid < 0) continue;
 
+// // compute_link_q_CYLINDER(ip, x0, y0, cyl_id, q)
+// __device__ inline bool compute_link_q_CYLINDER(int ip, double x0, double y0,
+//                                       int cid, double &q)
         double q = 0.0;
-        if (!compute_link_q(ip, x0, y0, z0, ppos_x[pid], ppos_y[pid], ppos_z[pid], radius_sq, q)) {
+        if (!compute_link_q(ip, x0, y0, cyl_id, q)) {
             continue;
         }
 
@@ -211,7 +214,7 @@ __global__ void pipe_link_fill_kernel(const int *count, const int *offset,
         link.cell_j = iy;
         link.cell_k = iz;
         link.dir = ip;
-        link.pid = pid;
+        link.pid = cyl_id;
         link.q = q;
         link.rx = q * cx_dir;
         link.ry = q * cy_dir;
