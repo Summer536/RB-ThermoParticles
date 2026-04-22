@@ -1,7 +1,137 @@
 #include "particle.h"
 #include <algorithm>
+#include <cmath>
+#include <cub/cub.cuh>
 
 namespace {
+
+__global__ void new_fluid_count_kernel(int *count,
+                                       const int *ibnode_prev, const int *ibnode,
+                                       const int *owner_prev,
+                                       const double *ppos_x,
+                                       const double *ppos_y,
+                                       const double *ppos_z) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= LXYZ) return;
+
+    if (ibnode_prev[idx] != 1 || ibnode[idx] == 1) {
+        count[idx] = 0;
+        return;
+    }
+
+    int pid = owner_prev[idx];
+    if (pid < 0 || pid >= NPART) {
+        count[idx] = 0;
+        return;
+    }
+
+    const int iz = idx / LXY;
+    const int rem = idx - iz * LXY;
+    const int iy = rem / LX;
+    const int ix = rem - iy * LX;
+    const double x0 = static_cast<double>(ix) + 0.5;
+    const double y0 = static_cast<double>(iy) + 0.5;
+    const double z0 = static_cast<double>(iz) + 0.5;
+    const double dx = x0 - ppos_x[pid];
+    const double dy = y0 - ppos_y[pid];
+    const double dz = z0 - ppos_z[pid];
+    const double dist = sqrt(dx * dx + dy * dy + dz * dz);
+    const double close_thresh = 1.7606816861659007;
+    count[idx] = (dist - d_particle_radius <= close_thresh) ? 1 : 0;
+}
+
+__global__ void new_fluid_fill_kernel(const int *count, const int *offset,
+                                      const int *ibnode_prev, const int *ibnode,
+                                      const int *owner_prev,
+                                      const double *ppos_x,
+                                      const double *ppos_y,
+                                      const double *ppos_z,
+                                      int *nodes, int *pids) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= LXYZ) return;
+    if (count[idx] == 0) return;
+
+    if (ibnode_prev[idx] != 1 || ibnode[idx] == 1) return;
+
+    int pid = owner_prev[idx];
+    if (pid < 0 || pid >= NPART) return;
+
+    const int iz = idx / LXY;
+    const int rem = idx - iz * LXY;
+    const int iy = rem / LX;
+    const int ix = rem - iy * LX;
+    const double x0 = static_cast<double>(ix) + 0.5;
+    const double y0 = static_cast<double>(iy) + 0.5;
+    const double z0 = static_cast<double>(iz) + 0.5;
+    const double dx = x0 - ppos_x[pid];
+    const double dy = y0 - ppos_y[pid];
+    const double dz = z0 - ppos_z[pid];
+    const double dist = sqrt(dx * dx + dy * dy + dz * dz);
+    const double close_thresh = 1.7606816861659007;
+    if (dist - d_particle_radius > close_thresh) return;
+
+    const int pos = offset[idx];
+    nodes[pos] = idx;
+    pids[pos] = pid;
+}
+
+void prepare_new_fluid_nodes() {
+    if (!d_link_count) {
+        CHECK_CUDA_ERROR(cudaMalloc(&d_link_count, LXYZ * sizeof(int)));
+    }
+    if (!d_link_offset) {
+        CHECK_CUDA_ERROR(cudaMalloc(&d_link_offset, LXYZ * sizeof(int)));
+    }
+
+    size_t scan_bytes = 0;
+    CHECK_CUDA_ERROR(cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes,
+                                                   d_link_count, d_link_offset, LXYZ));
+    if (scan_bytes > d_link_scan_bytes) {
+        if (d_link_scan_tmp) {
+            CHECK_CUDA_ERROR(cudaFree(d_link_scan_tmp));
+        }
+        CHECK_CUDA_ERROR(cudaMalloc(&d_link_scan_tmp, scan_bytes));
+        d_link_scan_bytes = scan_bytes;
+    }
+    const int threads = 256;
+    const int blocks = (LXYZ + threads - 1) / threads;
+    new_fluid_count_kernel<<<blocks, threads>>>(d_link_count,
+                                                d_ibnode_prev, d_ibnode,
+                                                d_ibnode_owner_prev,
+                                                d_ppos_x, d_ppos_y, d_ppos_z);
+    CHECK_CUDA_ERROR(cudaGetLastError());
+    CHECK_CUDA_ERROR(cub::DeviceScan::ExclusiveSum(d_link_scan_tmp, d_link_scan_bytes,
+                                                   d_link_count, d_link_offset, LXYZ));
+
+    int last_offset = 0;
+    int last_count = 0;
+    CHECK_CUDA_ERROR(cudaMemcpy(&last_offset, d_link_offset + (LXYZ - 1),
+                                sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERROR(cudaMemcpy(&last_count, d_link_count + (LXYZ - 1),
+                                sizeof(int), cudaMemcpyDeviceToHost));
+    num_new_fluid_nodes = last_offset + last_count;
+
+    if (num_new_fluid_nodes > new_fluid_capacity) {
+        if (d_new_fluid_nodes) {
+            CHECK_CUDA_ERROR(cudaFree(d_new_fluid_nodes));
+        }
+        if (d_new_fluid_pids) {
+            CHECK_CUDA_ERROR(cudaFree(d_new_fluid_pids));
+        }
+        CHECK_CUDA_ERROR(cudaMalloc(&d_new_fluid_nodes, num_new_fluid_nodes * sizeof(int)));
+        CHECK_CUDA_ERROR(cudaMalloc(&d_new_fluid_pids, num_new_fluid_nodes * sizeof(int)));
+        new_fluid_capacity = num_new_fluid_nodes;
+    }
+
+    if (num_new_fluid_nodes > 0) {
+        new_fluid_fill_kernel<<<blocks, threads>>>(d_link_count, d_link_offset,
+                                                   d_ibnode_prev, d_ibnode,
+                                                   d_ibnode_owner_prev,
+                                                   d_ppos_x, d_ppos_y, d_ppos_z,
+                                                   d_new_fluid_nodes, d_new_fluid_pids);
+        CHECK_CUDA_ERROR(cudaGetLastError());
+    }
+}
 
 __global__ void refill_new_fluid_kernel(const int *nodes,
                                         const int *owners,
@@ -34,7 +164,7 @@ __global__ void refill_new_fluid_kernel(const int *nodes,
     const double lambda0 = 1.0 - d_tp[0];
     const double RT = 1.0 / 3.0;
 
-    int pid = owners ? owners[tid] : -1; 
+    int pid = owners ? owners[tid] : -1; //pid: 该新增点上一step所属的颗粒
     if (pid < 0 && owner_prev_map) {
         int prev_pid = owner_prev_map[idx];
         if (prev_pid >= 0) pid = prev_pid;
@@ -51,20 +181,20 @@ __global__ void refill_new_fluid_kernel(const int *nodes,
         double temp_g = 0.0;
         int sample_count = 0;
 
-
+        //如果该ip方向有相邻流体点，则使用相邻流体点插值构造f/g
         for (int ip2 = 1; ip2 < NPOP; ++ip2) {
             int ix1 = ix + d_cix[ip2];
             int iy1 = iy + d_ciy[ip2];
             int iz1 = iz + d_ciz[ip2];
             if (ix1 < 0 || ix1 >= LX || iy1 < 0 || iy1 >= LY || iz1 < 0 || iz1 >= LZ) continue;
             int idx1 = iz1 * LXY + iy1 * LX + ix1;
-            if (ibnode_prev[idx1] != 0) continue; 
+            if (ibnode_prev[idx1] != 0) continue; //相邻流体点上一时刻也必须为流体点（否则它也没有f/g）
 
             int ix2 = ix + 2 * d_cix[ip2];
             int iy2 = iy + 2 * d_ciy[ip2];
             int iz2 = iz + 2 * d_ciz[ip2];
             bool inside2 = (ix2 >= 0 && ix2 < LX && iy2 >= 0 && iy2 < LY && iz2 >= 0 && iz2 < LZ);
-            if (inside2) { 
+            if (inside2) { //1、2阶都有效
                 int idx2 = iz2 * LXY + iy2 * LX + ix2;
                 if (ibnode_prev[idx2] == 0) {
                     temp_f += 2.0 * f_collide[ip * LXYZ + idx1] - f_collide[ip * LXYZ + idx2];
@@ -74,11 +204,13 @@ __global__ void refill_new_fluid_kernel(const int *nodes,
                 }
             }
 
+            //仅1阶有效
             temp_f += f_collide[ip * LXYZ + idx1];
             temp_g += g_collide[ip * LXYZ + idx1];
             ++sample_count;
         }
 
+        //如果没有，则使用之前所属颗粒中心的宏观量->近似计算当前节点宏观量->使用宏观量来生成f/g
         if (sample_count == 0) {
             double px = 0.0;
             double py = 0.0;
@@ -170,6 +302,8 @@ __global__ void refill_new_fluid_kernel(const int *nodes,
 void refill_nodes() {
     if (!ACTIVATE_PARTICLES || NPART == 0) return;
 
+    prepare_new_fluid_nodes();
+
     if (num_new_fluid_nodes > 0 && d_new_fluid_nodes && d_new_fluid_pids) {
         const int threads = 128;
         const int blocks = (num_new_fluid_nodes + threads - 1) / threads;
@@ -191,6 +325,7 @@ void refill_nodes() {
         CHECK_CUDA_ERROR(cudaDeviceSynchronize());
     }
 
+    // 更新上一时刻缓存，供下一时间步使用
     CHECK_CUDA_ERROR(cudaMemcpy(d_ibnode_prev,  d_ibnode,  LXYZ * sizeof(int), cudaMemcpyDeviceToDevice));
     CHECK_CUDA_ERROR(cudaMemcpy(d_ibnode_owner_prev, d_ibnode_owner, LXYZ * sizeof(int), cudaMemcpyDeviceToDevice));
 }
