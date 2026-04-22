@@ -238,9 +238,9 @@ void load_restart_state(int step, dim3 grid, dim3 block) {
 } // namespace
 
 void initialize() {
-    if (ACTIVATE_PARTICLES) {
-        update_particle_count();
-    }
+    // if (ACTIVATE_PARTICLES) {
+    //     update_particle_count();
+    // }
     
     CHECK_CUDA_ERROR(cudaMalloc(&d_f,      NPOP * LXYZ * sizeof(double)));
     CHECK_CUDA_ERROR(cudaMalloc(&d_g,      NPOP * LXYZ * sizeof(double)));
@@ -304,8 +304,8 @@ void initialize() {
 
     bool use_restart = (restart_step > 0);
 
-    if (ACTIVATE_PARTICLES && NPART > 0) {
-        init_particles();
+    if (ACTIVATE_PIPE && NPIPE > 0) {
+        init_pipes();
     }
     dim3 grid((LX + BLOCK_X - 1) / BLOCK_X,
               (LY + BLOCK_Y - 1) / BLOCK_Y,
@@ -326,8 +326,8 @@ void initialize() {
         CHECK_CUDA_ERROR(cudaMemcpy(d_f_collide, d_f, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
         CHECK_CUDA_ERROR(cudaMemcpy(d_g_collide, d_g, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
 
-        if (ACTIVATE_PARTICLES && NPART > 0) {
-            build_links();
+        if (ACTIVATE_PIPE && NPIPE > 0) {
+            build_pipe_links();
         }
     }
 }

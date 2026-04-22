@@ -99,9 +99,6 @@ void init_pipes();
 void build_pipe_links();
 void pipe_bounce_back();
 void pipe_bounce_back_thermal();
-// void prepare_pipe_forces_step();
-// void compute_pipe_forces();
-// void compute_pipe_heat();
 
 template <typename T>
 inline T* malloc_host_array(size_t n) {

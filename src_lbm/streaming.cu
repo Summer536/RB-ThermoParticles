@@ -11,8 +11,16 @@ __global__ void streaming(double *f, double *f_temp) {
     for (int ip = 0; ip < NPOP; ++ip) {
         int sx = ix - d_cix[ip];
         int sy = iy - d_ciy[ip];
-        int sz = iz - d_ciz[ip];
-        if (sx >= 0 && sx < LX && sy >= 0 && sy < LY && sz >= 0 && sz < LZ) {
+        // int sz = iz - d_ciz[ip];
+        int sz = ( iz - d_ciz[ip] + LZ ) % LZ; //periodic in z direction
+        // if (sx >= 0 && sx < LX && sy >= 0 && sy < LY && sz >= 0 && sz < LZ) {
+        //     int src = (sz * LXY) + (sy * LX) + sx;
+        //     f_temp[ip * LXYZ + idx] = f[ip * LXYZ + src];
+        // } else {
+        //     int opp = d_opp[ip];
+        //     f_temp[ip * LXYZ + idx] = f[opp * LXYZ + idx];
+        // }
+        if (sx >= 0 && sx < LX && sy >= 0 && sy < LY) {
             int src = (sz * LXY) + (sy * LX) + sx;
             f_temp[ip * LXYZ + idx] = f[ip * LXYZ + src];
         } else {

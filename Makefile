@@ -13,17 +13,17 @@ SRCS = main.cu \
 	src_pipe/globals_pipe.cu \
 	src_pipe/pipe_links.cu \
 	src_pipe/pipe_ibb.cu \
-	src_part/pinit.cu \
-	src_part/links.cu \
-	src_part/refill.cu \
-	src_part/ibb.cu \
-	src_part/pforces.cu \
-	src_part/move.cu \
+# 	src_part/pinit.cu \
+# 	src_part/links.cu \
+# 	src_part/refill.cu \
+# 	src_part/ibb.cu \
+# 	src_part/pforces.cu \
+# 	src_part/move.cu \
 	output/output_flow.cu \
 	output/output_statis.cu \
 	output/output_part.cu
 OBJS = $(SRCS:.cu=.o)
-TARGET = rb3d
+TARGET = TC3D
 HDRS = include/lbm.h include/particle.h parameters.h
 
 all: $(TARGET)

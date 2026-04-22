@@ -13,9 +13,9 @@
 #define NPOP 27
 
 // Time steps
-#define NEND 1000000
+#define NEND 5000
 #define NDIAG 125
-#define NFLOWOUT 25000
+#define NFLOWOUT 5000
 #define NNUOUT 125
 #define NOUT_P 125
 

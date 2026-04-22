@@ -1,4 +1,5 @@
 #include "particle.h"
+#include "pipe.h"
 
 __constant__ int d_cix[NPOP];
 __constant__ int d_ciy[NPOP];

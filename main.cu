@@ -49,41 +49,41 @@ int main() {
         CHECK_CUDA_ERROR(cudaGetLastError());
         CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
-        if (ACTIVATE_PARTICLES && NPART > 0) {
-            bounce_back_particles(); ///////For the velocity field
+        if (ACTIVATE_PIPE && NPIPE > 0) {
+            pipe_bounce_back(); ///////For the velocity field
             CHECK_CUDA_ERROR(cudaDeviceSynchronize());
         }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-        collision_BGK_scalar<<<grid, block>>>(d_g, d_force_realx, d_force_realy, d_force_realz,
-                                              d_rho, d_ux, d_uy, d_uz, d_phi);
-        CHECK_CUDA_ERROR(cudaGetLastError());
-        CHECK_CUDA_ERROR(cudaDeviceSynchronize()); 
-        CHECK_CUDA_ERROR(cudaMemcpy(d_g_collide, d_g, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
+        // collision_BGK_scalar<<<grid, block>>>(d_g, d_force_realx, d_force_realy, d_force_realz,
+        //                                       d_rho, d_ux, d_uy, d_uz, d_phi);
+        // CHECK_CUDA_ERROR(cudaGetLastError());
+        // CHECK_CUDA_ERROR(cudaDeviceSynchronize()); 
+        // CHECK_CUDA_ERROR(cudaMemcpy(d_g_collide, d_g, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
 
-        streaming_scalar<<<grid, block>>>(d_g, d_g_temp, d_rho);
-        CHECK_CUDA_ERROR(cudaMemcpy(d_g, d_g_temp, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
-        CHECK_CUDA_ERROR(cudaGetLastError());
-        CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+        // streaming_scalar<<<grid, block>>>(d_g, d_g_temp, d_rho);
+        // CHECK_CUDA_ERROR(cudaMemcpy(d_g, d_g_temp, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
+        // CHECK_CUDA_ERROR(cudaGetLastError());
+        // CHECK_CUDA_ERROR(cudaDeviceSynchronize());
         
-        if (ACTIVATE_PARTICLES && NPART > 0) {
-            bounce_back_thermal_particles(); ///////For the thermal field
-            CHECK_CUDA_ERROR(cudaDeviceSynchronize());
-        }
+        // if (ACTIVATE_PARTICLES && NPART > 0) {
+        //     pipe_bounce_back_thermal(); ///////For the thermal field
+        //     CHECK_CUDA_ERROR(cudaDeviceSynchronize());
+        // }
 /////////////////////////////////////////////////////////////////////////////////////////////////////
         
-        if (ACTIVATE_PARTICLES && NPART > 0) {
-            // prepare_particle_forces_step();
-            // apply_repulsive_forces();
+        // if (ACTIVATE_PARTICLES && NPART > 0) {
+        //     // prepare_particle_forces_step();
+        //     // apply_repulsive_forces();
 
-            // compute_particle_forces();
-            // compute_particle_heat();
+        //     // compute_particle_forces();
+        //     // compute_particle_heat();
 
-            // update_particles();
+        //     // update_particles();
 
-            build_links();
-            // refill_nodes();
-        }
+        //     build_links();
+        //     // refill_nodes();
+        // }
 
         // GPU timing end
         CHECK_CUDA_ERROR(cudaEventRecord(gpu_stop));
@@ -102,16 +102,16 @@ int main() {
         if (istep % NFLOWOUT == 0 || istep == final_step) {
             output_flow(istep);
         }
-        if (istep % NOUT_P == 0) {
-            output_particles(istep);
-        }
+        // if (istep % NOUT_P == 0) {
+        //     output_particles(istep);
+        // }
         if (istep % NNUOUT == 0) {
             output_nu(istep);
             output_profile(istep);
         }
         if (istep == final_step) {
             output_fg(istep);
-            output_particles(istep);
+            // output_particles(istep);
         }
 
         // CPU timing end
