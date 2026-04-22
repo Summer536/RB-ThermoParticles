@@ -6,18 +6,24 @@
 
 namespace {
 
-// compute_link_q_C1(ip, x0, y0, z0, rad1_sq, q)
-__device__ inline bool compute_link_q_C1(int ip, double x0, double y0, double z0,
-                                      double radius_sq, double &q) {
+// compute_link_q_CYLINDER(ip, x0, y0, cyl_id, q)
+__device__ inline bool compute_link_q_CYLINDER(int ip, double x0, double y0,
+                                      int cid, double &q) {
     const double cx_dir = static_cast<double>(d_cix[ip]);
     const double cy_dir = static_cast<double>(d_ciy[ip]);
     // const double cz_dir = static_cast<double>(d_ciz[ip]);
+    if (cid =1 ) {
+        double radius_sq = PIPE_RAD1 * PIPE_RAD1
+    } else if (cid == 2) {
+        double radius_sq = PIPE_RAD2 * PIPE_RAD2
+    }
+
     const double dx = x0 - d_pipe_xcenter;
     const double dy = y0 - d_pipe_ycenter;
     // const double dz = z0 - pz;
-    const double a = cx_dir * cx_dir + cy_dir * cy_dir + cz_dir * cz_dir;
-    const double b = 2.0 * (cx_dir * dx + cy_dir * dy + cz_dir * dz);
-    const double c = dx * dx + dy * dy + dz * dz - radius_sq;
+    const double a = cx_dir * cx_dir + cy_dir * cy_dir;
+    const double b = 2.0 * (cx_dir * dx + cy_dir * dy);
+    const double c = dx * dx + dy * dy - radius_sq;
     const double disc = b * b - 4.0 * a * c;
     if (disc <= 0.0) return false;
     q = (-b - sqrt(disc)) / (2.0 * a);
@@ -130,32 +136,34 @@ __global__ void pipe_link_count_kernel(int *count,
 
     const double x0 = static_cast<double>(ix) + 0.5;
     const double y0 = static_cast<double>(iy) + 0.5;
-    const double z0 = static_cast<double>(iz) + 0.5;
-    const double rad1_sq = PIPE_RAD1 * PIPE_RAD1;
-    const double rad2_sq = PIPE_RAD2 * PIPE_RAD2;
+    // const double z0 = static_cast<double>(iz) + 0.5;
+    // const double rad1_sq = PIPE_RAD1 * PIPE_RAD1;
+    // const double rad2_sq = PIPE_RAD2 * PIPE_RAD2;
 
     int cnt = 0;
     for (int ip = 1; ip < NPOP; ++ip) {
         const int imove = ix + d_cix[ip];
         const int jmove = iy + d_ciy[ip];
-        // const int nz = iz + d_ciz[ip];
-        if (imove < 0 || imove >= LX || jmove < 0 || jmove >= LY ) continue;
+        const int zmove = iz + d_ciz[ip];
+        if (imove < 0 || imove >= LX || jmove < 0 || jmove >= LY || zmove < 0 || zmove >= LZ ) continue;
         const int nidx = nz * LXY + jmove * LX + imove;
         const int pid = owner[nidx];///
         if (pid < 0) continue;
 
         double q = 0.0;
-        if (pid == 1) {
-            if (compute_link_q_C1(ip, x0, y0, z0, rad1_sq, q)) {
-                cnt++;
-            }
+        if (compute_link_q_CYLINDER(ip, x0, y0, cyl_id, q)) {
+            cnt++;
         }
-        else if (pid == 2)
-        {
-            if (compute_link_q_C2(ip, x0, y0, z0, rad2_sq, q)) {
-                cnt++;
-            }
-        }       
+        // if (pid == 1) { ////// OUTER CYLINDER
+        //     if (compute_link_q_C1(ip, x0, y0, z0, rad1_sq, q)) {
+        //         cnt++;
+        //     }
+        // }
+        // else if (pid == 2){ ////// INNER CYLINDER
+        //     if (compute_link_q_C2(ip, x0, y0, z0, rad2_sq, q)) {
+        //         cnt++;
+        //     }
+        // }       
     }
     count[idx] = cnt;
 }
