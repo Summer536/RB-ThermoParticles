@@ -75,64 +75,6 @@ __global__ void new_fluid_fill_kernel(const int *count, const int *offset,
     pids[pos] = pid;
 }
 
-void prepare_new_fluid_nodes() {
-    if (!d_link_count) {
-        CHECK_CUDA_ERROR(cudaMalloc(&d_link_count, LXYZ * sizeof(int)));
-    }
-    if (!d_link_offset) {
-        CHECK_CUDA_ERROR(cudaMalloc(&d_link_offset, LXYZ * sizeof(int)));
-    }
-
-    size_t scan_bytes = 0;
-    CHECK_CUDA_ERROR(cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes,
-                                                   d_link_count, d_link_offset, LXYZ));
-    if (scan_bytes > d_link_scan_bytes) {
-        if (d_link_scan_tmp) {
-            CHECK_CUDA_ERROR(cudaFree(d_link_scan_tmp));
-        }
-        CHECK_CUDA_ERROR(cudaMalloc(&d_link_scan_tmp, scan_bytes));
-        d_link_scan_bytes = scan_bytes;
-    }
-    const int threads = 256;
-    const int blocks = (LXYZ + threads - 1) / threads;
-    new_fluid_count_kernel<<<blocks, threads>>>(d_link_count,
-                                                d_ibnode_prev, d_ibnode,
-                                                d_ibnode_owner_prev,
-                                                d_ppos_x, d_ppos_y, d_ppos_z);
-    CHECK_CUDA_ERROR(cudaGetLastError());
-    CHECK_CUDA_ERROR(cub::DeviceScan::ExclusiveSum(d_link_scan_tmp, d_link_scan_bytes,
-                                                   d_link_count, d_link_offset, LXYZ));
-
-    int last_offset = 0;
-    int last_count = 0;
-    CHECK_CUDA_ERROR(cudaMemcpy(&last_offset, d_link_offset + (LXYZ - 1),
-                                sizeof(int), cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERROR(cudaMemcpy(&last_count, d_link_count + (LXYZ - 1),
-                                sizeof(int), cudaMemcpyDeviceToHost));
-    num_new_fluid_nodes = last_offset + last_count;
-
-    if (num_new_fluid_nodes > new_fluid_capacity) {
-        if (d_new_fluid_nodes) {
-            CHECK_CUDA_ERROR(cudaFree(d_new_fluid_nodes));
-        }
-        if (d_new_fluid_pids) {
-            CHECK_CUDA_ERROR(cudaFree(d_new_fluid_pids));
-        }
-        CHECK_CUDA_ERROR(cudaMalloc(&d_new_fluid_nodes, num_new_fluid_nodes * sizeof(int)));
-        CHECK_CUDA_ERROR(cudaMalloc(&d_new_fluid_pids, num_new_fluid_nodes * sizeof(int)));
-        new_fluid_capacity = num_new_fluid_nodes;
-    }
-
-    if (num_new_fluid_nodes > 0) {
-        new_fluid_fill_kernel<<<blocks, threads>>>(d_link_count, d_link_offset,
-                                                   d_ibnode_prev, d_ibnode,
-                                                   d_ibnode_owner_prev,
-                                                   d_ppos_x, d_ppos_y, d_ppos_z,
-                                                   d_new_fluid_nodes, d_new_fluid_pids);
-        CHECK_CUDA_ERROR(cudaGetLastError());
-    }
-}
-
 __global__ void refill_new_fluid_kernel(const int *nodes,
                                         const int *owners,
                                         int count,
@@ -302,8 +244,64 @@ __global__ void refill_new_fluid_kernel(const int *nodes,
 void refill_nodes() {
     if (!ACTIVATE_PARTICLES || NPART == 0) return;
 
-    prepare_new_fluid_nodes();
+    //prepare new fluid nodes
+    if (!d_link_count) {
+        CHECK_CUDA_ERROR(cudaMalloc(&d_link_count, LXYZ * sizeof(int)));
+    }
+    if (!d_link_offset) {
+        CHECK_CUDA_ERROR(cudaMalloc(&d_link_offset, LXYZ * sizeof(int)));
+    }
 
+    size_t scan_bytes = 0;
+    CHECK_CUDA_ERROR(cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes,
+                                                   d_link_count, d_link_offset, LXYZ));
+    if (scan_bytes > d_link_scan_bytes) {
+        if (d_link_scan_tmp) {
+            CHECK_CUDA_ERROR(cudaFree(d_link_scan_tmp));
+        }
+        CHECK_CUDA_ERROR(cudaMalloc(&d_link_scan_tmp, scan_bytes));
+        d_link_scan_bytes = scan_bytes;
+    }
+    const int threads = 256;
+    const int blocks = (LXYZ + threads - 1) / threads;
+    new_fluid_count_kernel<<<blocks, threads>>>(d_link_count,
+                                                d_ibnode_prev, d_ibnode,
+                                                d_ibnode_owner_prev,
+                                                d_ppos_x, d_ppos_y, d_ppos_z);
+    CHECK_CUDA_ERROR(cudaGetLastError());
+    CHECK_CUDA_ERROR(cub::DeviceScan::ExclusiveSum(d_link_scan_tmp, d_link_scan_bytes,
+                                                   d_link_count, d_link_offset, LXYZ));
+
+    int last_offset = 0;
+    int last_count = 0;
+    CHECK_CUDA_ERROR(cudaMemcpy(&last_offset, d_link_offset + (LXYZ - 1),
+                                sizeof(int), cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERROR(cudaMemcpy(&last_count, d_link_count + (LXYZ - 1),
+                                sizeof(int), cudaMemcpyDeviceToHost));
+    num_new_fluid_nodes = last_offset + last_count;
+
+    if (num_new_fluid_nodes > new_fluid_capacity) {
+        if (d_new_fluid_nodes) {
+            CHECK_CUDA_ERROR(cudaFree(d_new_fluid_nodes));
+        }
+        if (d_new_fluid_pids) {
+            CHECK_CUDA_ERROR(cudaFree(d_new_fluid_pids));
+        }
+        CHECK_CUDA_ERROR(cudaMalloc(&d_new_fluid_nodes, num_new_fluid_nodes * sizeof(int)));
+        CHECK_CUDA_ERROR(cudaMalloc(&d_new_fluid_pids, num_new_fluid_nodes * sizeof(int)));
+        new_fluid_capacity = num_new_fluid_nodes;
+    }
+
+    if (num_new_fluid_nodes > 0) { //compress to array
+        new_fluid_fill_kernel<<<blocks, threads>>>(d_link_count, d_link_offset,
+                                                   d_ibnode_prev, d_ibnode,
+                                                   d_ibnode_owner_prev,
+                                                   d_ppos_x, d_ppos_y, d_ppos_z,
+                                                   d_new_fluid_nodes, d_new_fluid_pids);
+        CHECK_CUDA_ERROR(cudaGetLastError());
+    }
+
+    //refill the new fluid nodes
     if (num_new_fluid_nodes > 0 && d_new_fluid_nodes && d_new_fluid_pids) {
         const int threads = 128;
         const int blocks = (num_new_fluid_nodes + threads - 1) / threads;
