@@ -5,9 +5,9 @@
 #define CONTINUOUS_STEPS 0
 
 // Grid dimensions
-#define LX 320
-#define LY 320
-#define LZ 160
+#define LX 216
+#define LY 216
+#define LZ 32
 #define LXY (LX * LY)
 #define LXYZ (LX * LY * LZ)
 #define NPOP 27
