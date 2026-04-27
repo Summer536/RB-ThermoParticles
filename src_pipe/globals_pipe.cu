@@ -8,7 +8,7 @@ __constant__ int d_npipe;
 //PIPES
 int npipe = 0;
 double pipe_radius1 = PIPE_RAD1, pipe_radius2 = PIPE_RAD2;
-double pipe_xcenter = LX / 2.0 pipe_ycenter = LY / 2.0;
+double pipe_xcenter = LX / 2.0, pipe_ycenter = LY / 2.0;
 double pipe_omega1 = 0.0, pipe_omega2 = PIPE_u0 / PIPE_RAD2;
 
 // PIPE device pointers
@@ -22,17 +22,41 @@ void *d_pipe_link_scan_tmp = nullptr;
 size_t d_pipe_link_scan_bytes = 0;
 int pipe_link_capacity = 0;
 
+double *d_pipe_theta_x = nullptr;
+double *d_pipe_theta_y = nullptr;
+double *d_pipe_theta_z = nullptr;
+
+double *d_pipe_temp = nullptr;
+double *d_pipe_heat = nullptr;
+double *d_pipe_force_x  = nullptr;
+double *d_pipe_force_y  = nullptr;
+double *d_pipe_force_z  = nullptr;
+double *d_pipe_torque_x = nullptr;
+double *d_pipe_torque_y = nullptr;
+double *d_pipe_torque_z = nullptr;
 double *d_pipe_force_accum_x = nullptr;
 double *d_pipe_force_accum_y = nullptr;
 double *d_pipe_force_accum_z = nullptr;
+double *d_pipe_torque_accum_x = nullptr;
+double *d_pipe_torque_accum_y = nullptr;
+double *d_pipe_torque_accum_z = nullptr;
+double *d_pipe_heat_x = nullptr; 
+double *d_pipe_heat_y = nullptr; 
+double *d_pipe_heat_z = nullptr;
 
 // Host pointers definition(particle)
 double *h_pipe_force_x = nullptr, *h_pipe_force_y = nullptr, *h_pipe_force_z = nullptr;
 double *h_pipe_torque_x = nullptr, *h_pipe_torque_y = nullptr, *h_pipe_torque_z = nullptr;
 double *h_pipe_temp = nullptr, *h_pipe_heat = nullptr;
 
+// int *h_ibnode = nullptr;
+// int *h_ibnode_owner = nullptr;
 int *h_pipe_bnode = nullptr;
 int *h_pipe_bnode_owner = nullptr;
+
+double *h_pipe_theta_x = nullptr;
+double *h_pipe_theta_y = nullptr;
+double *h_pipe_theta_z = nullptr;
 
 double *h_pipe_force_accum_x = nullptr;
 double *h_pipe_force_accum_y = nullptr;
@@ -40,6 +64,10 @@ double *h_pipe_force_accum_z = nullptr;
 double *h_pipe_torque_accum_x = nullptr;
 double *h_pipe_torque_accum_y = nullptr;
 double *h_pipe_torque_accum_z = nullptr;
+double *h_pipe_heat_x = nullptr; 
+double *h_pipe_heat_y = nullptr; 
+double *h_pipe_heat_z = nullptr;
+
 
 void init_pipe_paras() {
 

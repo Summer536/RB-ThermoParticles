@@ -1,4 +1,5 @@
 #include "particle.h"
+#include "pipe.h"
 #include <vector>
 #include <fstream>
 
@@ -54,151 +55,151 @@ void load_flow_fields(const char *dirname, int step) {
     CHECK_CUDA_ERROR(cudaMemcpy(d_Ked, h_Ked, count * sizeof(double), cudaMemcpyHostToDevice));
 }
 
-void load_particles_from_restart(const char *dirname, int step) {
-    if (!(ACTIVATE_PARTICLES && NPART > 0)) return;
+// void load_particles_from_restart(const char *dirname, int step) {
+//     if (!(ACTIVATE_PARTICLES && NPART > 0)) return;
 
-    char pos_filename[1024];
-    snprintf(pos_filename, sizeof(pos_filename), "%s/pos/pos_%09d.txt", dirname, step);
+//     char pos_filename[1024];
+//     snprintf(pos_filename, sizeof(pos_filename), "%s/pos/pos_%09d.txt", dirname, step);
 
-    std::ifstream fin(pos_filename);
-    if (!fin) {
-        fprintf(stderr, "Failed to open restart particle file %s\n", pos_filename);
-        exit(EXIT_FAILURE);
-    }
+//     std::ifstream fin(pos_filename);
+//     if (!fin) {
+//         fprintf(stderr, "Failed to open restart particle file %s\n", pos_filename);
+//         exit(EXIT_FAILURE);
+//     }
 
-    std::vector<double> force_prev_x(NPART, 0.0), force_prev_y(NPART, 0.0), force_prev_z(NPART, 0.0);
-    std::vector<double> force_prev2_x(NPART, 0.0), force_prev2_y(NPART, 0.0), force_prev2_z(NPART, 0.0);
-    std::vector<double> torque_prev_x(NPART, 0.0), torque_prev_y(NPART, 0.0), torque_prev_z(NPART, 0.0);
-    std::vector<double> torque_prev2_x(NPART, 0.0), torque_prev2_y(NPART, 0.0), torque_prev2_z(NPART, 0.0);
+//     std::vector<double> force_prev_x(NPART, 0.0), force_prev_y(NPART, 0.0), force_prev_z(NPART, 0.0);
+//     std::vector<double> force_prev2_x(NPART, 0.0), force_prev2_y(NPART, 0.0), force_prev2_z(NPART, 0.0);
+//     std::vector<double> torque_prev_x(NPART, 0.0), torque_prev_y(NPART, 0.0), torque_prev_z(NPART, 0.0);
+//     std::vector<double> torque_prev2_x(NPART, 0.0), torque_prev2_y(NPART, 0.0), torque_prev2_z(NPART, 0.0);
 
-    for (int lines_read = 0; lines_read < NPART; ++lines_read) {
-        int pid = -1;
-        double px = 0.0, py = 0.0, pz = 0.0;
-        double vx = 0.0, vy = 0.0, vz = 0.0;
-        double fx = 0.0, fy = 0.0, fz = 0.0;
-        double fx_prev = 0.0, fy_prev = 0.0, fz_prev = 0.0;
-        double fx_prev2 = 0.0, fy_prev2 = 0.0, fz_prev2 = 0.0;
-        double theta_x = 0.0, theta_y = 0.0, theta_z = 0.0;
-        double omega_x = 0.0, omega_y = 0.0, omega_z = 0.0;
-        double torque_x = 0.0, torque_y = 0.0, torque_z = 0.0;
-        double torque_prev_x_val = 0.0, torque_prev_y_val = 0.0, torque_prev_z_val = 0.0;
-        double torque_prev2_x_val = 0.0, torque_prev2_y_val = 0.0, torque_prev2_z_val = 0.0;
-        double temp = 0.0, heat = 0.0, hprev = 0.0;
+//     for (int lines_read = 0; lines_read < NPART; ++lines_read) {
+//         int pid = -1;
+//         double px = 0.0, py = 0.0, pz = 0.0;
+//         double vx = 0.0, vy = 0.0, vz = 0.0;
+//         double fx = 0.0, fy = 0.0, fz = 0.0;
+//         double fx_prev = 0.0, fy_prev = 0.0, fz_prev = 0.0;
+//         double fx_prev2 = 0.0, fy_prev2 = 0.0, fz_prev2 = 0.0;
+//         double theta_x = 0.0, theta_y = 0.0, theta_z = 0.0;
+//         double omega_x = 0.0, omega_y = 0.0, omega_z = 0.0;
+//         double torque_x = 0.0, torque_y = 0.0, torque_z = 0.0;
+//         double torque_prev_x_val = 0.0, torque_prev_y_val = 0.0, torque_prev_z_val = 0.0;
+//         double torque_prev2_x_val = 0.0, torque_prev2_y_val = 0.0, torque_prev2_z_val = 0.0;
+//         double temp = 0.0, heat = 0.0, hprev = 0.0;
 
-        if (!(fin >> pid
-              >> px >> py >> pz
-              >> vx >> vy >> vz
-              >> fx >> fy >> fz
-              >> fx_prev >> fy_prev >> fz_prev
-              >> fx_prev2 >> fy_prev2 >> fz_prev2
-              >> theta_x >> theta_y >> theta_z
-              >> omega_x >> omega_y >> omega_z
-              >> torque_x >> torque_y >> torque_z
-              >> torque_prev_x_val >> torque_prev_y_val >> torque_prev_z_val
-              >> torque_prev2_x_val >> torque_prev2_y_val >> torque_prev2_z_val
-              >> temp >> heat >> hprev)) {
-            fprintf(stderr, "Failed to read particle restart data from %s\n", pos_filename);
-            exit(EXIT_FAILURE);
-        }
+//         if (!(fin >> pid
+//               >> px >> py >> pz
+//               >> vx >> vy >> vz
+//               >> fx >> fy >> fz
+//               >> fx_prev >> fy_prev >> fz_prev
+//               >> fx_prev2 >> fy_prev2 >> fz_prev2
+//               >> theta_x >> theta_y >> theta_z
+//               >> omega_x >> omega_y >> omega_z
+//               >> torque_x >> torque_y >> torque_z
+//               >> torque_prev_x_val >> torque_prev_y_val >> torque_prev_z_val
+//               >> torque_prev2_x_val >> torque_prev2_y_val >> torque_prev2_z_val
+//               >> temp >> heat >> hprev)) {
+//             fprintf(stderr, "Failed to read particle restart data from %s\n", pos_filename);
+//             exit(EXIT_FAILURE);
+//         }
 
-        h_ppos_x[pid] = px;
-        h_ppos_y[pid] = py;
-        h_ppos_z[pid] = pz;
-        h_pvel_x[pid] = vx;
-        h_pvel_y[pid] = vy;
-        h_pvel_z[pid] = vz;
+//         h_ppos_x[pid] = px;
+//         h_ppos_y[pid] = py;
+//         h_ppos_z[pid] = pz;
+//         h_pvel_x[pid] = vx;
+//         h_pvel_y[pid] = vy;
+//         h_pvel_z[pid] = vz;
 
-        h_pforce_x[pid] = fx;
-        h_pforce_y[pid] = fy;
-        h_pforce_z[pid] = fz;
-        h_particle_force_accum_x[pid] = fx;
-        h_particle_force_accum_y[pid] = fy;
-        h_particle_force_accum_z[pid] = fz;
-        force_prev_x[pid] = fx_prev;
-        force_prev_y[pid] = fy_prev;
-        force_prev_z[pid] = fz_prev;
-        force_prev2_x[pid] = fx_prev2;
-        force_prev2_y[pid] = fy_prev2;
-        force_prev2_z[pid] = fz_prev2;
+//         h_pforce_x[pid] = fx;
+//         h_pforce_y[pid] = fy;
+//         h_pforce_z[pid] = fz;
+//         h_particle_force_accum_x[pid] = fx;
+//         h_particle_force_accum_y[pid] = fy;
+//         h_particle_force_accum_z[pid] = fz;
+//         force_prev_x[pid] = fx_prev;
+//         force_prev_y[pid] = fy_prev;
+//         force_prev_z[pid] = fz_prev;
+//         force_prev2_x[pid] = fx_prev2;
+//         force_prev2_y[pid] = fy_prev2;
+//         force_prev2_z[pid] = fz_prev2;
 
-        h_ptheta_x[pid] = theta_x;
-        h_ptheta_y[pid] = theta_y;
-        h_ptheta_z[pid] = theta_z;
-        h_pomega_x[pid] = omega_x;
-        h_pomega_y[pid] = omega_y;
-        h_pomega_z[pid] = omega_z;
+//         h_ptheta_x[pid] = theta_x;
+//         h_ptheta_y[pid] = theta_y;
+//         h_ptheta_z[pid] = theta_z;
+//         h_pomega_x[pid] = omega_x;
+//         h_pomega_y[pid] = omega_y;
+//         h_pomega_z[pid] = omega_z;
 
-        h_ptorque_x[pid] = torque_x;
-        h_ptorque_y[pid] = torque_y;
-        h_ptorque_z[pid] = torque_z;
-        h_particle_torque_accum_x[pid] = torque_x;
-        h_particle_torque_accum_y[pid] = torque_y;
-        h_particle_torque_accum_z[pid] = torque_z;
-        torque_prev_x[pid] = torque_prev_x_val;
-        torque_prev_y[pid] = torque_prev_y_val;
-        torque_prev_z[pid] = torque_prev_z_val;
-        torque_prev2_x[pid] = torque_prev2_x_val;
-        torque_prev2_y[pid] = torque_prev2_y_val;
-        torque_prev2_z[pid] = torque_prev2_z_val;
+//         h_ptorque_x[pid] = torque_x;
+//         h_ptorque_y[pid] = torque_y;
+//         h_ptorque_z[pid] = torque_z;
+//         h_particle_torque_accum_x[pid] = torque_x;
+//         h_particle_torque_accum_y[pid] = torque_y;
+//         h_particle_torque_accum_z[pid] = torque_z;
+//         torque_prev_x[pid] = torque_prev_x_val;
+//         torque_prev_y[pid] = torque_prev_y_val;
+//         torque_prev_z[pid] = torque_prev_z_val;
+//         torque_prev2_x[pid] = torque_prev2_x_val;
+//         torque_prev2_y[pid] = torque_prev2_y_val;
+//         torque_prev2_z[pid] = torque_prev2_z_val;
 
-        h_ptemp[pid] = temp;
-        h_pheat[pid] = heat;
-        h_pheat_prev[pid] = hprev;
-    }
-    fin.close();
+//         h_ptemp[pid] = temp;
+//         h_pheat[pid] = heat;
+//         h_pheat_prev[pid] = hprev;
+//     }
+//     fin.close();
 
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ppos_x, h_ppos_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ppos_y, h_ppos_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ppos_z, h_ppos_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pvel_x, h_pvel_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pvel_y, h_pvel_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pvel_z, h_pvel_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pforce_x, h_pforce_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pforce_y, h_pforce_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pforce_z, h_pforce_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_accum_x, h_particle_force_accum_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_accum_y, h_particle_force_accum_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_accum_z, h_particle_force_accum_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pomega_x, h_pomega_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pomega_y, h_pomega_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pomega_z, h_pomega_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ptheta_x, h_ptheta_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ptheta_y, h_ptheta_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ptheta_z, h_ptheta_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ptorque_x, h_ptorque_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ptorque_y, h_ptorque_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ptorque_z, h_ptorque_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_accum_x, h_particle_torque_accum_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_accum_y, h_particle_torque_accum_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_accum_z, h_particle_torque_accum_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_ptemp, h_ptemp, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pheat, h_pheat, NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pheat_prev, h_pheat_prev, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ppos_x, h_ppos_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ppos_y, h_ppos_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ppos_z, h_ppos_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pvel_x, h_pvel_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pvel_y, h_pvel_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pvel_z, h_pvel_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pforce_x, h_pforce_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pforce_y, h_pforce_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pforce_z, h_pforce_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_accum_x, h_particle_force_accum_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_accum_y, h_particle_force_accum_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_accum_z, h_particle_force_accum_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pomega_x, h_pomega_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pomega_y, h_pomega_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pomega_z, h_pomega_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ptheta_x, h_ptheta_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ptheta_y, h_ptheta_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ptheta_z, h_ptheta_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ptorque_x, h_ptorque_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ptorque_y, h_ptorque_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ptorque_z, h_ptorque_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_accum_x, h_particle_torque_accum_x, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_accum_y, h_particle_torque_accum_y, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_accum_z, h_particle_torque_accum_z, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_ptemp, h_ptemp, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pheat, h_pheat, NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_pheat_prev, h_pheat_prev, NPART * sizeof(double), cudaMemcpyHostToDevice));
 
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev_x, force_prev_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev_y, force_prev_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev_z, force_prev_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev2_x, force_prev2_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev2_y, force_prev2_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev2_z, force_prev2_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev_x, torque_prev_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev_y, torque_prev_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev_z, torque_prev_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev2_x, torque_prev2_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev2_y, torque_prev2_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev2_z, torque_prev2_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev_x, force_prev_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev_y, force_prev_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev_z, force_prev_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev2_x, force_prev2_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev2_y, force_prev2_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_force_prev2_z, force_prev2_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev_x, torque_prev_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev_y, torque_prev_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev_z, torque_prev_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev2_x, torque_prev2_x.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev2_y, torque_prev2_y.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
+//     CHECK_CUDA_ERROR(cudaMemcpy(d_particle_torque_prev2_z, torque_prev2_z.data(), NPART * sizeof(double), cudaMemcpyHostToDevice));
 
-    build_links();
-}
+//     build_links();
+// }
 
 void load_restart_state(int step, dim3 grid, dim3 block) {
     char dirname[256];
     snprintf(dirname, sizeof(dirname), "Ra%.1ePr%.2f", rayl, prand);
 
     load_distributions_from_restart(dirname, step);
-    if (ACTIVATE_PARTICLES && NPART > 0) {
-        load_particles_from_restart(dirname, step);
-    }
+    // if (ACTIVATE_PARTICLES && NPART > 0) {
+    //     load_particles_from_restart(dirname, step);
+    // }
 
     CHECK_CUDA_ERROR(cudaMemcpy(d_f_collide, d_f, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));
     CHECK_CUDA_ERROR(cudaMemcpy(d_g_collide, d_g, NPOP * LXYZ * sizeof(double), cudaMemcpyDeviceToDevice));

@@ -121,14 +121,14 @@ void apply_repulsive_forces();
 void update_particles();
 void output_particles(int istep);
 
-template <typename T>
-inline T* malloc_host_array(size_t n) {
-    T* ptr = static_cast<T*>(malloc(n * sizeof(T)));
-    if (!ptr) {
-        fprintf(stderr, "Failed to allocate particle host buffer\n");
-        exit(EXIT_FAILURE);
-    }
-    return ptr;
-}
+// template <typename T>
+// inline T* malloc_host_array(size_t n) {
+//     T* ptr = static_cast<T*>(malloc(n * sizeof(T)));
+//     if (!ptr) {
+//         fprintf(stderr, "Failed to allocate particle host buffer\n");
+//         exit(EXIT_FAILURE);
+//     }
+//     return ptr;
+// }
 
 #endif

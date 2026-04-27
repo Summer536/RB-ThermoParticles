@@ -44,10 +44,10 @@ __global__ void pipe_bb_kernel(const PipeLink *links, int num_links,
     // const int iz1 = iz - d_ciz[ip];
     const int iz1 = ( iz - d_ciz[ip] + LZ ) % LZ; // z-periodic
     // x_bbb
-    const int ix2 = ix - 2.0 * d_cix[ip];
-    const int iy2 = iy - 2.0 * d_ciy[ip];
+    const int ix2 = ix - 2 * d_cix[ip];
+    const int iy2 = iy - 2 * d_ciy[ip];
     // const int iz2 = iz - 2.0 * d_ciz[ip]
-    const int iz2 = ( iz - 2.0 * d_ciz[ip] + LZ ) % LZ; // z-periodic
+    const int iz2 = ( iz - 2 * d_ciz[ip] + LZ ) % LZ; // z-periodic
 
     const double cx = static_cast<double>(ix) + 0.5 + q * d_cix[ip];  // surface cordi
     const double cy = static_cast<double>(iy) + 0.5 + q * d_ciy[ip];  // surface cordi
@@ -59,15 +59,17 @@ __global__ void pipe_bb_kernel(const PipeLink *links, int num_links,
     const double rely = cy - py;
     // const double relz = cz - pz;
 
+    double uwx = 0.0; // d_pipe_omega1
+    double uwy = 0.0;
+    double uwz = 0.0;
     if (pid == 1) {
-        const double uwx = - rely * d_pipe_omega1; // d_pipe_omega1
-        const double uwy =   relx * d_pipe_omega1;
+        uwx = - rely * d_pipe_omega1; // d_pipe_omega1
+        uwy =   relx * d_pipe_omega1;
     } else if (pid ==2){
-        const double uwx = - rely * d_pipe_omega2; // d_pipe_omega2
-        const double uwy =   relx * d_pipe_omega2;
+        uwx = - rely * d_pipe_omega2; // d_pipe_omega2
+        uwy =   relx * d_pipe_omega2;
     }
     // const double uwz = pvel_z[pid] + (rely * pomega_x[pid] - relx * pomega_y[pid]);
-    const double uwz = 0.0;
     const double evel = d_cix[ip] * uwx + d_ciy[ip] * uwy + d_ciz[ip] * uwz; // Velocity projection e_{alpha} \cdot u
     const double RT = 1.0 / 3.0;
     const double momentum_term = 2.0 * d_tp[ip] * RHO0 * evel / RT;
@@ -89,8 +91,8 @@ __global__ void pipe_bb_kernel(const PipeLink *links, int num_links,
     if (ix1 >= 0 && ix1 < LX && iy1 >= 0 && iy1 < LY &&
         ix2 >= 0 && ix2 < LX && iy2 >= 0 && iy2 < LY ) {
         // const int idx1 = iz1 * LXY + iy1 * LX + ix1;
-        if (ibnode[idx_bb] == 0 && ibnode[idx1_bb]) {
-            const double f_here = f_collide[ip * LXYZ + idx]; //f_b
+        if (ibnode[idx_bb] == 0 && ibnode[idx_bb]) {
+            // const double f_here = f_collide[ip * LXYZ + idx]; //f_b
             if (q <= 0.5) {
                 const double c1 = q * (1.0 + 2.0*q);
                 const double c2 = 1.0 - q * q;
@@ -161,21 +163,23 @@ __global__ void pipe_bb_thermal_kernel(const PipeLink *links, int num_links,
     const int iz1 = iz - d_ciz[ip];
     const int idx_bb = iz1 * LXY + iy1 * LX + ix1;
     // x_bbb
-    const int ix2 = ix - 2.0 * d_cix[ip];
-    const int iy2 = iy - 2.0 * d_ciy[ip];
-    const int iz2 = iz - 2.0 * d_ciz[ip];
+    const int ix2 = ix - 2 * d_cix[ip];
+    const int iy2 = iy - 2 * d_ciy[ip];
+    const int iz2 = iz - 2 * d_ciz[ip];
     const int idx_bbb = iz2 * LXY + iy2 * LX + ix2;
 
-    const double density = rho[idx];
-    const double Tp = ptemp[pid];
+    const double density = 1.0; //rho[idx];
+    const double Tp = 0.0; //ptemp[pid];
     const double amp = 2.0 * d_tp[ip] * Tp * (1.0 + density);
 
     double value = 0.0;
+    // if (ix1 >= 0 && ix1 < LX && iy1 >= 0 && iy1 < LY &&
+    //     iz1 >= 0 && iz1 < LZ ) {
     if (ix1 >= 0 && ix1 < LX && iy1 >= 0 && iy1 < LY &&
-        iz1 >= 0 && iz1 < LZ && ibnode_prev[idx1] == 0) {
+        ix2 >= 0 && ix2 < LX && iy2 >= 0 && iy2 < LY ) {
         if (q <= 0.5) {
             const double g_here = g_collide[ip * LXYZ + idx];
-            const double g_upstream = g_collide[ip * LXYZ + idx1];
+            const double g_upstream = g_collide[ip * LXYZ + idx_bb];
             value = -(2.0 * q * g_here + (1.0 - 2.0 * q) * g_upstream) + amp;
         } else {
             const double g_here = g_collide[ip * LXYZ + idx];
@@ -198,13 +202,13 @@ __global__ void pipe_bb_thermal_kernel(const PipeLink *links, int num_links,
 } // namespace
 
 void pipe_bounce_back() {
-    if (!ACTIVATE_PARTICLES || NPIPE == 0 || num_pipe_links == 0) return;
+    if (!ACTIVATE_PIPE || NPIPE == 0 || num_pipe_links == 0) return;
     const int threads = 128;
-    const int blocks = (num_particle_links + threads - 1) / threads;
+    const int blocks = (num_pipe_links + threads - 1) / threads;
     pipe_bb_kernel<<<blocks, threads>>>(d_pipe_links, num_pipe_links,
                                                      d_f,
                                                      d_f_collide,
-                                                     d_ibnode);
+                                                     d_pipe_bnode);
     CHECK_CUDA_ERROR(cudaGetLastError());
 }
 

@@ -12,10 +12,11 @@ __device__ inline bool compute_link_q_CYLINDER(int ip, double x0, double y0,
     const double cx_dir = static_cast<double>(d_cix[ip]);
     const double cy_dir = static_cast<double>(d_ciy[ip]);
     // const double cz_dir = static_cast<double>(d_ciz[ip]);
-    if (cid =1 ) {
-        double radius_sq = PIPE_RAD1 * PIPE_RAD1
+    double radius_sq = 0.0;
+    if (cid == 1 ) {
+        radius_sq = PIPE_RAD1 * PIPE_RAD1;
     } else if (cid == 2) {
-        double radius_sq = PIPE_RAD2 * PIPE_RAD2
+        radius_sq = PIPE_RAD2 * PIPE_RAD2;
     }
 
     const double dx = x0 - d_pipe_xcenter;
@@ -34,30 +35,30 @@ void allocate_pipe_arrays() {
     const size_t np = static_cast<size_t>(NPIPE);
     if (np == 0) return;
 
-    h_pipe_force_x      = malloc_host_array<double>(np);
-    h_pipe_force_y      = malloc_host_array<double>(np);
-    h_pipe_force_z      = malloc_host_array<double>(np);
-    h_pipe_torque_x     = malloc_host_array<double>(np);
-    h_pipe_torque_y     = malloc_host_array<double>(np);
-    h_pipe_torque_z     = malloc_host_array<double>(np);
-    h_pipe_temp         = malloc_host_array<double>(np);
-    h_pipe_heat         = malloc_host_array<double>(np);
+    h_pipe_force_x      = malloc_host_array<double>(npipe);
+    h_pipe_force_y      = malloc_host_array<double>(npipe);
+    h_pipe_force_z      = malloc_host_array<double>(npipe);
+    h_pipe_torque_x     = malloc_host_array<double>(npipe);
+    h_pipe_torque_y     = malloc_host_array<double>(npipe);
+    h_pipe_torque_z     = malloc_host_array<double>(npipe);
+    h_pipe_temp         = malloc_host_array<double>(npipe);
+    h_pipe_heat         = malloc_host_array<double>(npipe);
 
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_x,      np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_y,      np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_z,      np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_x,     np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_y,     np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_z,     np * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_x,      npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_y,      npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_z,      npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_x,     npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_y,     npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_z,     npipe * sizeof(double)));
     CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_temp,         np * sizeof(double)));
     CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_heat,         np * sizeof(double)));
 
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_accum_x, np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_accum_y, np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_accum_z, np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_accum_x,  np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_accum_y,  np * sizeof(double)));
-    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_accum_z,  np * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_accum_x, npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_accum_y, npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_force_accum_z, npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_accum_x,  npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_accum_y,  npipe * sizeof(double)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_pipe_torque_accum_z,  npipe * sizeof(double)));
 
     // Grid markers & ownership (ibnode: 0 fluid, 1 outer cylinder, 2 inner cylinder)
     h_pipe_bnode       = malloc_host_array<int>(LXYZ);   //0 res fluid, 1 res particle
@@ -68,8 +69,8 @@ void allocate_pipe_arrays() {
 
 void build_initial_pipe_bnode() {
     for (int idx = 0; idx < LXYZ; ++idx) {
-        h_ibnode[idx] = 0;  //0 is fuild; 1 is the outer cylinder, 2 is the inner one
-        h_ibnode_owner[idx] = -1; //pipe ID
+        h_pipe_bnode[idx] = 0;  //0 is fuild; 1 is the outer cylinder, 2 is the inner one
+        h_pipe_bnode_owner[idx] = -1; //pipe ID
     }
 
     // OUTER CYLINDER
@@ -148,7 +149,7 @@ __global__ void pipe_link_count_kernel(int *count,
         if (imove < 0 || imove >= LX || jmove < 0 || jmove >= LY || kmove < 0 || kmove >= LZ ) continue;
         const int nidx = kmove * LXY + jmove * LX + imove;
         const int cyl_id = owner[nidx];///
-        if (pid < 0) continue;
+        if (cyl_id < 0) continue;
 
         double q = 0.0;
         if (compute_link_q_CYLINDER(ip, x0, y0, cyl_id, q)) {
@@ -173,7 +174,7 @@ __global__ void pipe_link_count_kernel(int *count,
 //                                       d_pipe_links);
 __global__ void pipe_link_fill_kernel(const int *count, const int *offset,
                                  const int *ibnode,
-                                 const int *owner
+                                 const int *owner,
                                  PipeLink *links) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= LXYZ) return;
@@ -196,20 +197,20 @@ __global__ void pipe_link_fill_kernel(const int *count, const int *offset,
         if (imove < 0 || imove >= LX || jmove < 0 || jmove >= LY || kmove < 0 || kmove >= LZ) continue;
         const int nidx = kmove * LXY + jmove * LX + imove;
         const int cyl_id = owner[nidx];
-        if (pid < 0) continue;
+        if (cyl_id < 0) continue;
 
 // // compute_link_q_CYLINDER(ip, x0, y0, cyl_id, q)
 // __device__ inline bool compute_link_q_CYLINDER(int ip, double x0, double y0,
 //                                       int cid, double &q)
         double q = 0.0;
-        if (!compute_link_q(ip, x0, y0, cyl_id, q)) {
+        if (!compute_link_q_CYLINDER(ip, x0, y0, cyl_id, q)) {
             continue;
         }
 
         const double cx_dir = static_cast<double>(d_cix[ip]);
         const double cy_dir = static_cast<double>(d_ciy[ip]);
         const double cz_dir = static_cast<double>(d_ciz[ip]);
-        ParticleLink link;
+        PipeLink link;
         link.cell_i = ix;
         link.cell_j = iy;
         link.cell_k = iz;
@@ -261,7 +262,7 @@ void init_pipes() {
     std::fill(h_pipe_heat,         h_pipe_heat         + NPIPE, 0.0);
 
     const double initial_temp = 0.0;
-    std::fill(h_pipe_temp, h_pipe_temp + NIPE, initial_temp);
+    std::fill(h_pipe_temp, h_pipe_temp + NPIPE, initial_temp);
     std::fill_n(h_pipe_force_accum_x   = malloc_host_array<double>(NPIPE), NPIPE, 0.0);  //void fill_n(start_loc, N , value)
     std::fill_n(h_pipe_force_accum_y   = malloc_host_array<double>(NPIPE), NPIPE, 0.0);
     std::fill_n(h_pipe_force_accum_z   = malloc_host_array<double>(NPIPE), NPIPE, 0.0);
@@ -280,12 +281,12 @@ void init_pipes() {
     CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_torque_z,     h_pipe_torque_z,     NPIPE * sizeof(double), cudaMemcpyHostToDevice));
     CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_temp,         h_pipe_temp,         NPIPE * sizeof(double), cudaMemcpyHostToDevice));
     CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_heat,         h_pipe_heat,         NPIPE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_article_force_accum_x, h_pipe_article_force_accum_x, NPIPE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_article_force_accum_y, h_pipe_article_force_accum_y, NPIPE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_article_force_accum_z, h_pipe_article_force_accum_z, NPIPE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_article_torque_accum_x,  h_pipe_article_torque_accum_x,  NPIPE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_article_torque_accum_y,  h_pipe_article_torque_accum_y,  NPIPE * sizeof(double), cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_article_torque_accum_z,  h_pipe_article_torque_accum_z,  NPIPE * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_force_accum_x,  h_pipe_force_accum_x,  NPIPE * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_force_accum_y,  h_pipe_force_accum_y,  NPIPE * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_force_accum_z,  h_pipe_force_accum_z,  NPIPE * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_torque_accum_x, h_pipe_torque_accum_x, NPIPE * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_torque_accum_y, h_pipe_torque_accum_y, NPIPE * sizeof(double), cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_pipe_torque_accum_z, h_pipe_torque_accum_z, NPIPE * sizeof(double), cudaMemcpyHostToDevice));
 
     build_initial_pipe_bnode();
 }
@@ -297,11 +298,10 @@ void build_pipe_links() {
     CHECK_CUDA_ERROR(cudaMemset(d_pipe_bnode, 0, LXYZ * sizeof(int)));
     CHECK_CUDA_ERROR(cudaMemset(d_pipe_bnode_owner, 0xFF, LXYZ * sizeof(int))); // 0xFF is -1
 
-    const double rad1_sq = PIPE_RAD1 * PIPE_RAD1;
-    const double rad2_sq = PIPE_RAD2 * PIPE_RAD2;
+    // const double rad1_sq = PIPE_RAD1 * PIPE_RAD1;
+    // const double rad2_sq = PIPE_RAD2 * PIPE_RAD2;
 
-    const dim3 block_ib(8, 8, 8);
-
+    // const dim3 block_ib(8, 8, 8);
 
     // check wheter "d_pipe_link_count" and "d_pipe_link_offset" is nullptr
     if (!d_pipe_link_count) {
